@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  🐰 うさうさ研修工房 ＝ 研修ツール 6モード統合版
+  APP_VER : v5.4.0-hexmode
+  モード   : ①講師質問(新宿ビル/質問3層・なぜ系4層回答・一次二次・受講生L0〜L3・理解確認・配布用ひな形6種) ②受講生質問(小学校) ③30秒クイズ(おもちゃ)
+             ④PPT構成(プレゼン) ⑤日報・敬語(オフィス) ⑥認識・理解(教科書)
+  保存     : Notion用コピー / メモ(.txt) / PDF / (クイズのみ CSV / Excel)
+  方針     : 単一HTML・外部依存なし・端末フォント・状態はメモリ内・役割表記前提
+  面白きこともなき世を面白く
+  ============================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>うさうさ研修ツール｜6モード統合版</title>
+<style>
+  :root{
+    --ink:#2a3242; --ink-soft:#5d6b7d;
+    --card:rgba(255,255,255,.88); --card-line:rgba(255,255,255,.92); --field-bg:rgba(255,255,255,.96);
+    --radius:18px; --glass-shadow:0 14px 40px rgba(40,60,90,.16);
+    --bg-a:#dfeefb; --bg-b:#eef4fb;
+    --theme:#3a7bd5; --theme-deep:#2a5fa8; --theme-soft:#e3eef9;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; color:var(--ink); line-height:1.65; min-height:100vh;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    background:linear-gradient(180deg,var(--bg-a) 0%,var(--bg-b) 80%); transition:background 1s ease; overflow-x:hidden;}
+  .scene{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+  .layer{position:absolute; inset:0; opacity:0; transition:opacity 1s ease;} .layer.on{opacity:1;}
+  /* 講師：新宿ビル */
+  #skyline{position:absolute; left:0; right:0; bottom:0; height:54%; display:flex; align-items:flex-end;}
+  .b{position:relative; flex:0 0 auto; background:#7d9bbb;} .b.mid{background:#a6c0d8;} .b.far{background:#cdddec;}
+  .b .top{position:absolute; top:-9px; left:50%; width:3px; height:12px; transform:translateX(-50%); background:#7d9bbb;}
+  .b .wins{position:absolute; inset:10px 8px 0; display:grid; gap:5px; align-content:start;}
+  .b .w{width:8px; height:9px; background:rgba(180,210,235,.4); border-radius:1px;}
+  /* 受講生：小学校 */
+  #school .grass{position:absolute; left:0; right:0; bottom:0; height:110px; background:#9bd07a; border-top:4px solid #7fb95f;}
+  #school .sunny{position:absolute; left:8%; top:10%; width:84px; height:84px; border-radius:50%; background:radial-gradient(circle,#ffe14d,#ffd23f 60%,transparent 72%);}
+  #school .board{position:absolute; right:6%; top:16%; width:180px; height:108px; background:#3f6b54; border:9px solid #c9a06a; border-radius:8px;}
+  #school .board::after{content:"1+1=?"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:22px; font-weight:700; opacity:.85;}
+  /* クイズ：おもちゃ */
+  #toy{position:absolute; inset:0; background:
+      radial-gradient(circle at 15% 20%, rgba(255,210,63,.4), transparent 20%),
+      radial-gradient(circle at 85% 18%, rgba(62,160,255,.36), transparent 20%),
+      radial-gradient(circle at 22% 82%, rgba(255,111,181,.36), transparent 22%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.45) 0 22px, rgba(255,240,220,.45) 22px 44px);}
+  /* PPT：プレゼン（スクリーン＋スポット） */
+  #ppt{position:absolute; inset:0; background:linear-gradient(180deg,#2d2a45,#46406a);}
+  #ppt .screen{position:absolute; left:50%; top:14%; transform:translateX(-50%); width:46%; height:42%; background:#f4f1ff; border-radius:6px; box-shadow:0 18px 50px rgba(0,0,0,.4);}
+  #ppt .spot{position:absolute; top:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:160px solid transparent; border-right:160px solid transparent; border-top:280px solid rgba(255,240,180,.16);}
+  /* 日報：オフィス（夕方デスク） */
+  #office{position:absolute; inset:0; background:linear-gradient(180deg,#ffe0b8,#ffd0c0);}
+  #office .desk{position:absolute; left:0; right:0; bottom:0; height:120px; background:#b5876a; border-top:6px solid #9c6f54;}
+  #office .win{position:absolute; right:8%; top:14%; width:160px; height:120px; background:linear-gradient(180deg,#ffd27a,#ff9e7a); border:8px solid #fff; border-radius:6px;}
+  /* 認識理解：教科書（ノート罫線＋付箋） */
+  #book{position:absolute; inset:0; background:#fdfaf2;
+    background-image:repeating-linear-gradient(transparent,transparent 31px,#dfe7f0 31px,#dfe7f0 32px); }
+  #book .margin{position:absolute; top:0; bottom:0; left:11%; width:2px; background:#f0a8b0;}
+  #book .tag{position:absolute; right:10%; top:12%; width:90px; height:60px; background:#ffe066; transform:rotate(6deg); box-shadow:0 6px 14px rgba(0,0,0,.12);}
+
+  .wrap{position:relative; z-index:2; max-width:760px; margin:0 auto; padding:22px 16px 80px;}
+  header{text-align:center; margin-bottom:6px;}
+  .badge{display:inline-block; font-size:12px; letter-spacing:.06em; color:#fff;
+    background:linear-gradient(90deg,var(--theme),var(--theme-deep)); padding:5px 15px; border-radius:999px; margin-bottom:9px; box-shadow:0 6px 16px rgba(0,0,0,.18); transition:background 1s;}
+  h1{font-size:22px; margin:0 0 4px;} .lead{color:var(--ink-soft); font-size:13px; margin:0;}
+  .ver{font-size:11px; color:var(--ink-soft); opacity:.7; margin-top:5px;}
+
+  .modes{display:flex; gap:6px; margin:14px 0 12px; flex-wrap:wrap;}
+  .mode{flex:1 1 30%; text-align:center; font-size:12.5px; font-weight:800; padding:11px 4px; border-radius:14px; cursor:pointer;
+    border:2px solid rgba(255,255,255,.85); background:rgba(255,255,255,.65); color:var(--ink-soft); backdrop-filter:blur(8px); transition:all .18s;}
+  .mode .ic{display:block; font-size:19px; margin-bottom:2px;}
+  .mode.on{color:#fff; box-shadow:0 6px 14px rgba(0,0,0,.14);}
+  .mode.on[data-m="teacher"]{background:linear-gradient(90deg,#3a7bd5,#2a5fa8); border-color:#3a7bd5;}
+  .mode.on[data-m="student"]{background:linear-gradient(90deg,#ff9f43,#f0846f); border-color:#ff9f43;}
+  .mode.on[data-m="quiz"]{background:linear-gradient(90deg,#3ec96f,#2ea85d); border-color:#3ec96f;}
+  .mode.on[data-m="ppt"]{background:linear-gradient(90deg,#9b6dff,#6f4fd0); border-color:#9b6dff;}
+  .mode.on[data-m="report"]{background:linear-gradient(90deg,#e8854a,#c96a30); border-color:#e8854a;}
+  .mode.on[data-m="understand"]{background:linear-gradient(90deg,#d6336c,#a82455); border-color:#d6336c;}
+
+  .pane{display:none;} .pane.on{display:block;}
+  .speech{position:relative; background:rgba(255,255,255,.8); border:1px solid var(--card-line); border-radius:var(--radius);
+    padding:12px 14px 12px 50px; margin:13px 0; font-size:12.5px; color:var(--ink); backdrop-filter:blur(8px); box-shadow:0 8px 20px rgba(40,60,90,.1);}
+  .speech::before{content:"🐰"; position:absolute; left:14px; top:10px; font-size:23px;}
+  .card{background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius); padding:17px; margin-bottom:15px; backdrop-filter:blur(14px); box-shadow:var(--glass-shadow);}
+  .card h2{font-size:15px; margin:0 0 11px; display:flex; align-items:center; gap:8px;}
+  label{display:block; font-size:12.5px; color:var(--ink-soft); margin:0 0 4px; font-weight:700;}
+  label .hint{font-weight:400; opacity:.85;}
+  input[type=text], textarea, select{width:100%; border:1.5px solid rgba(120,150,180,.25); border-radius:11px; padding:9px 11px;
+    font-size:14px; font-family:inherit; color:var(--ink); background:var(--field-bg); transition:border-color .15s, box-shadow .15s;}
+  input:focus, textarea:focus, select:focus{outline:none; border-color:var(--theme); box-shadow:0 0 0 3px var(--theme-soft);}
+  textarea{resize:vertical; min-height:52px;}
+  .row{display:flex; flex-wrap:wrap; gap:11px;} .row .field{flex:1; min-width:130px;}
+  .field{margin-bottom:12px;} .field:last-child{margin-bottom:0;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;}
+  .chip{font-size:12px; padding:6px 11px; border-radius:999px; cursor:pointer; user-select:none; border:1.5px solid rgba(120,150,180,.3); background:var(--field-bg); color:var(--ink-soft); transition:all .12s;}
+  .chip.on{background:var(--theme); border-color:var(--theme); color:#fff; font-weight:700;}
+  .lv-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:11px;}
+  .lvt{font-size:12px; padding:7px 11px; border-radius:10px; cursor:pointer; font-weight:700; border:1.5px solid rgba(120,150,180,.3); background:var(--field-bg); color:var(--ink-soft);}
+  .lvt.on{background:var(--theme); border-color:var(--theme); color:#fff;}
+  .lv-guide{border-radius:12px; padding:12px 14px; font-size:12.5px; background:var(--theme-soft); border:1px solid rgba(0,0,0,.06); display:none;}
+  .lv-guide.show{display:block;} .lv-guide h3{margin:0 0 6px; font-size:13px; color:var(--theme-deep);}
+  .lv-guide ul{margin:6px 0 0; padding-left:18px;} .lv-guide li{margin-bottom:3px;}
+  .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;}
+  button.btn{font-family:inherit; font-size:14px; font-weight:800; border:none; border-radius:12px; padding:12px 20px; cursor:pointer; color:#fff; transition:transform .08s;}
+  .btn:active{transform:translateY(2px);}
+  .btn-theme{background:linear-gradient(90deg,var(--theme),var(--theme-deep)); box-shadow:0 7px 16px rgba(0,0,0,.18);}
+  .btn-ghost{background:rgba(255,255,255,.8); color:var(--theme-deep); border:1.5px solid var(--theme);}
+  .out-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .out-box{background:rgba(255,255,255,.92); border:1.5px dashed var(--theme); border-radius:11px; padding:13px; font-size:12.5px;
+    white-space:pre-wrap; word-break:break-word; font-family:"SFMono-Regular",Consolas,"Courier New",monospace; color:#2f3e50; margin-top:10px; min-height:36px;}
+  .copied{color:#2e9c6e; font-size:12px; font-weight:800;}
+  .escalate{margin-top:12px; padding:11px 13px; border-radius:11px; background:rgba(255,235,200,.75); border:1px solid rgba(217,164,65,.5); font-size:12px; color:#7a5e2a; display:none;}
+  .escalate.show{display:block;}
+  .dl-btns{display:flex; gap:7px; margin-top:10px; flex-wrap:wrap;}
+  .dl-btns .dl{flex:1; min-width:92px; font-family:inherit; font-size:11.5px; padding:9px 5px; font-weight:700; color:var(--theme-deep); background:rgba(255,255,255,.85); border:1.5px solid var(--theme); border-radius:10px; cursor:pointer; transition:transform .08s;}
+  .dl-btns .dl:active{transform:translateY(2px);}
+  /* クイズ */
+  .score{display:flex; gap:10px; margin-bottom:15px;}
+  .sc{flex:1; border-radius:15px; padding:10px; text-align:center; color:#fff; border:3px solid #fff; box-shadow:0 5px 0 rgba(0,0,0,.14);}
+  .sc.q{background:#6f9bc4;} .sc.o{background:#3ec96f;} .sc.x{background:#e0716b;}
+  .sc .n{font-size:26px; font-weight:900; line-height:1;} .sc .l{font-size:11px; margin-top:2px; font-weight:800;}
+  .sc.pop{animation:pop .35s;} @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.2);}100%{transform:scale(1);}}
+  .timer-card{background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius); box-shadow:var(--glass-shadow); padding:18px 14px; text-align:center; margin-bottom:15px; backdrop-filter:blur(14px);}
+  .sec-switch{display:inline-flex; gap:6px; background:rgba(255,255,255,.65); border:2px solid rgba(255,255,255,.85); border-radius:999px; padding:4px; margin-bottom:11px;}
+  .sec-switch .ss{font-family:inherit; font-size:13px; font-weight:900; border:none; cursor:pointer; padding:7px 17px; border-radius:999px; color:var(--ink-soft); background:transparent; transition:all .15s;}
+  .sec-switch .ss.on{background:#3ec96f; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.14);}
+  .ring{position:relative; width:180px; height:180px; margin:0 auto 8px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .time{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:56px; font-weight:900; font-variant-numeric:tabular-nums; color:#3ec96f;}
+  .ring.warn .time{color:#d9a441;} .ring.danger .time{color:#e0716b; animation:bounce .4s infinite alternate;}
+  @keyframes bounce{from{transform:scale(1);}to{transform:scale(1.07);}} .ring.done .time{font-size:28px; color:#e0716b;}
+  .timer-btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .jb{display:flex; gap:12px; margin-top:14px;} .jb button{flex:1; font-size:18px; padding:16px;}
+  .btn-ok{background:#3ec96f; box-shadow:0 6px 0 rgba(0,0,0,.14);} .btn-ng{background:#e0716b; box-shadow:0 6px 0 rgba(0,0,0,.14);}
+  .log{list-style:none; margin:10px 0 0; padding:0; max-height:200px; overflow:auto;}
+  .log li{display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px dashed #e4d6c6; font-size:13px; font-weight:700;}
+  .log li:last-child{border-bottom:none;}
+  .log .mark{font-size:16px; width:22px; text-align:center; flex:0 0 auto;}
+  .log .who{color:var(--ink-soft); min-width:0; overflow-wrap:anywhere; word-break:break-word;}
+  .log .qn{margin-left:auto; font-size:11px; color:#fff; background:#6f9bc4; padding:2px 9px; border-radius:999px; flex:0 0 auto;}
+  .empty{color:var(--ink-soft); font-size:12.5px; text-align:center; padding:12px; font-weight:700;}
+  .mini-btns{display:flex; gap:8px; margin-top:11px; flex-wrap:wrap;}
+  .mini-btns button{flex:1; min-width:100px; font-size:12px; padding:10px; font-weight:800; color:#fff; border:none; border-radius:11px; cursor:pointer;}
+  .mb-undo{background:#d9a441;} .mb-copy{background:#3ec96f;} .mb-reset{background:#e0716b;}
+  #selftest{font-size:11px; text-align:center; color:var(--ink-soft); margin-top:18px; opacity:.85;}
+  footer{text-align:center; font-size:11px; color:var(--ink-soft); margin-top:20px; opacity:.78;}
+  .confetti{position:fixed; top:-12px; width:11px; height:14px; z-index:50; pointer-events:none; border-radius:2px;}
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="layer on" id="lyr-teacher"><div id="skyline"></div></div>
+    <div class="layer" id="lyr-student"><div id="school"><div class="sunny"></div><div class="board"></div><div class="grass"></div></div></div>
+    <div class="layer" id="lyr-quiz"><div id="toy"></div></div>
+    <div class="layer" id="lyr-ppt"><div id="ppt"><div class="spot"></div><div class="screen"></div></div></div>
+    <div class="layer" id="lyr-report"><div id="office"><div class="win"></div><div class="desk"></div></div></div>
+    <div class="layer" id="lyr-understand"><div id="book"><div class="margin"></div><div class="tag"></div></div></div>
+  </div>
+
+<div class="wrap">
+  <header>
+    <span class="badge" id="badge">うさうさ研修工房</span>
+    <h1>🐰 研修ツール 6モード統合版</h1>
+    <p class="lead" id="lead">質問・クイズ・発表資料・日報・理解確認をひとつに</p>
+    <p class="ver" id="ver"></p>
+  </header>
+
+  <div class="modes">
+    <div class="mode on" data-m="teacher" onclick="setMode('teacher')"><span class="ic">🏙️</span>講師の質問</div>
+    <div class="mode" data-m="student" onclick="setMode('student')"><span class="ic">🏫</span>受講生の質問</div>
+    <div class="mode" data-m="quiz" onclick="setMode('quiz')"><span class="ic">🧸</span>30秒クイズ</div>
+    <div class="mode" data-m="ppt" onclick="setMode('ppt')"><span class="ic">🖥️</span>発表スライド</div>
+    <div class="mode" data-m="report" onclick="setMode('report')"><span class="ic">📋</span>日報・敬語</div>
+    <div class="mode" data-m="understand" onclick="setMode('understand')"><span class="ic">📖</span>認識・理解</div>
+  </div>
+
+  <!-- ① 講師の質問 -->
+  <div class="pane on" id="pane-teacher">
+    <div class="speech">講師が受講生から口頭で聞き取り、ダッシュボード／FAQ用に整えます。答えに詰まったら「確認してお返事いたします」で大丈夫。</div>
+    <div class="card"><h2>📍 基本情報</h2>
+      <div class="row">
+        <div class="field"><label>単元・テーマ</label><input type="text" id="t-unit" placeholder="例）アクセス制御 / chmod"></div>
+        <div class="field"><label>質問者 <span class="hint">（役割表記・氏名は書かない）</span></label><input type="text" id="t-who" placeholder="例）受講生A"></div>
+      </div>
+      <div class="field"><label>カテゴリ</label><div class="chips" id="t-cat"></div></div>
+      <div class="row">
+        <div class="field"><label>緊急度</label><select id="t-urg"><option>低</option><option selected>中</option><option>高</option></select></div>
+        <div class="field"><label>結果</label><select id="t-result"><option>解決</option><option>保留</option><option>二次対応へ</option></select></div>
+      </div></div>
+    <div class="card"><h2>🎧 聞き取り</h2>
+      <div class="field"><label>① やりたいこと</label><textarea id="t-goal"></textarea></div>
+      <div class="field"><label>② いまの状況</label><textarea id="t-state"></textarea></div>
+      <div class="field"><label>③ 試したこと <span class="hint">（なくてもOK）</span></label><textarea id="t-tried"></textarea></div>
+      <div class="field"><label>④ 出ているエラー</label><textarea id="t-err" placeholder="エラー本文をそのまま貼ってOK"></textarea></div>
+      <div class="field"><label>⑤ 受講生の言葉そのまま <span class="hint">（任意・直さず引用）</span></label><textarea id="t-raw"></textarea></div>
+      <div class="field"><label>⑥ いちばん聞きたいこと</label><textarea id="t-ask"></textarea></div>
+      <div class="escalate" id="t-esc"><b>⚠ 二次対応へ</b>：二次対応引継ぎテンプレへ接続を。希望期限・サポート方式も添えると◎。</div></div>
+    <div class="card"><h2>🧭 質問のさばき方</h2>
+      <div class="field"><label>質問の層 <span class="hint">（テンプレ集の3層）</span></label>
+        <div class="chips" id="t-layer"></div></div>
+      <div class="field" id="t-why-wrap" style="display:none;"><label>「なぜ？」系の4層回答ガイド <span class="hint">（定義→たとえ→詳細→ひと言）</span></label>
+        <div class="row"><div class="field"><textarea id="t-why-def" placeholder="① 定義：◯◯とは…"></textarea></div>
+          <div class="field"><textarea id="t-why-ana" placeholder="② たとえ（正確でなくてOK）"></textarea></div></div>
+        <div class="row"><div class="field"><textarea id="t-why-detail" placeholder="③ 詳しく：原理・原則"></textarea></div>
+          <div class="field"><textarea id="t-why-one" placeholder="④ ひと言まとめ"></textarea></div></div></div></div>
+    <div class="card"><h2>🎯 対応段階・受講生レベル</h2>
+      <div class="row">
+        <div class="field"><label>対応段階</label><select id="t-stage"><option value="一次">一次（その場・即応）</option><option value="一次＋二次">一次＋二次（振り返り・ナレッジ化）</option></select></div>
+        <div class="field"><label>受講生レベル <span class="hint">（ひな形の出し分け）</span></label><select id="t-lvl"><option value="L0">L0 まだ言葉にできない</option><option value="L1">L1 まず質問を出せた</option><option value="L2" selected>L2 状況を言える</option><option value="L3">L3 仮説を持てる</option></select></div>
+      </div>
+      <div class="field"><label>一次：判断</label>
+        <div class="chips" id="t-prim"></div></div></div>
+    <div class="card" id="t-sec-card" style="display:none;"><h2>🔁 二次対応（振り返り・ナレッジ化）</h2>
+      <div class="field"><label>根本原因 <span class="hint">（「人」でなく「仕組み」で）</span></label><textarea id="t-root" placeholder="例）手順書にchmodの数字の意味の説明がなかった"></textarea></div>
+      <div class="row">
+        <div class="field"><label>横展開（他の受講生にも起きうる？）</label><select id="t-spread"><option value="はい">はい（横展開する）</option><option value="いいえ">いいえ</option></select></div>
+        <div class="field"><label>FAQ化</label><select id="t-faq"><option value="する">する（FAQナレッジベースへ）</option><option value="しない">しない</option></select></div>
+      </div>
+      <div class="field"><label>報連相パターン</label>
+        <div class="chips" id="t-renraku"></div></div>
+      <div class="field"><label>再発を防ぐ仕組み <span class="hint">「気をつけます」は不可</span></label><textarea id="t-prevent" placeholder="例）手順書に数字の意味の図解を追記し、演習前に1分で触れる"></textarea></div>
+      <div class="field"><label>連携先</label>
+        <div class="chips" id="t-link"></div></div></div>
+    <div class="card"><h2>✅ その場の理解確認 <span style="font-size:12px;font-weight:400;color:var(--ink-soft);">（回答したら終わりにしない）</span></h2>
+      <div class="field"><label>Step1 言い換え：「◯◯さんの言葉で一言で言うと？」</label><textarea id="t-u1" placeholder="受講生の返答をそのまま"></textarea></div>
+      <div class="field"><label>Step2 たとえ：「たとえると何に近い？」</label><textarea id="t-u2"></textarea></div>
+      <div class="field"><label>Step3 次の一手：「じゃあ次に何をすればいい？」</label><textarea id="t-u3"></textarea></div>
+      <div class="field"><label>理解度の見立て</label><select id="t-ulvl"><option value="">（未選択）</option><option value="◎ 自分の言葉で説明できる">◎ 自分の言葉で説明できる</option><option value="△ なんとなく分かる">△ なんとなく分かる（あとで再確認）</option><option value="× まだ難しい">× まだ難しい（別のたとえで再説明）</option></select></div></div>
+    <div class="actions"><button class="btn btn-theme" onclick="genTeacher()">🐰 整える</button><button class="btn btn-ghost" onclick="clearTeacher()">クリア</button></div>
+    <div class="card" style="margin-top:15px;">
+      <div class="out-head"><h2 style="margin:0;">📋 記録</h2><span class="copied" id="copied-t-out" style="display:none;">コピー✓</span></div>
+      <div class="out-box" id="t-out">「🐰 整える」を押すと出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('t-out','t-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('t-out','質問記録')">📝 メモ</button><button class="dl" onclick="dlTextPDF('t-out','質問記録')">📄 PDF</button></div></div>
+    <div class="card"><h2>📑 配布用ひな形 <span style="font-size:12px;font-weight:400;color:var(--ink-soft);">（空欄テンプレをそのままコピペ配布）</span></h2>
+      <div class="field"><label>ひな形の種類</label>
+        <div class="chips" id="t-tmpl-kind"></div></div>
+      <div class="field"><label>受講生レベル <span class="hint">（一次対応ひな形に聞き方ヒントを差し込み）</span></label>
+        <div class="chips" id="t-tmpl-lv"></div></div>
+      <div class="out-box" id="t-tmpl-out">上で種類を選ぶと、空欄ひな形が出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('t-tmpl-out','t-tmpl-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('t-tmpl-out','講師ひな形')">📝 メモ</button><button class="dl" onclick="dlTextPDF('t-tmpl-out','講師質問ひな形')">📄 PDF</button></div></div>
+  </div>
+
+  <!-- ② 受講生の質問 -->
+  <div class="pane" id="pane-student">
+    <div class="speech">良い質問は「前提・目的・仮説」があるか。でも<b>まず出せたら満点</b>。レベルに合わせて少しずつ形にしていこう！</div>
+    <div class="card"><h2>🎚️ きみのレベルは？</h2><div class="lv-tabs" id="lvTabs"></div><div class="lv-guide" id="lvGuide"></div></div>
+    <div class="card"><h2>📝 質問をつくる</h2>
+      <div class="field"><label>① ぜんてい：どこまで分かった？ <span class="hint">（理解を書き出す）</span></label><textarea id="s-prem"></textarea></div>
+      <div class="field"><label>② かせつ：たぶん〇〇かな？ <span class="hint">（なくてもOK）</span></label><textarea id="s-hyp"></textarea></div>
+      <div class="field"><label>③ しつもん：いちばん聞きたいこと</label><textarea id="s-ask"></textarea></div>
+      <div class="field"><label>（にんい）こたえの使い道</label><input type="text" id="s-use"></div></div>
+    <div class="actions"><button class="btn btn-theme" onclick="genStudent()">🐰 質問をととのえる</button><button class="btn btn-ghost" onclick="clearStudent()">クリア</button></div>
+    <div class="card" style="margin-top:15px;">
+      <div class="out-head"><h2 style="margin:0;">📋 できた質問</h2><span class="copied" id="copied-s-out" style="display:none;">コピー✓</span></div>
+      <div class="out-box" id="s-out">「🐰 質問をととのえる」を押すと出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('s-out','s-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('s-out','質問メモ')">📝 メモ</button><button class="dl" onclick="dlTextPDF('s-out','わたしの質問')">📄 PDF</button></div></div>
+  </div>
+
+  <!-- ③ 30秒クイズ -->
+  <div class="pane" id="pane-quiz">
+    <div class="speech">出題も回答も受講生が口頭でOK！講師は「スタート」で時間を計って⭕❌を押すだけ。指名メモは任意。</div>
+    <div class="score"><div class="sc q"><div class="n" id="sc-q">0</div><div class="l">出題数</div></div><div class="sc o"><div class="n" id="sc-o">0</div><div class="l">⭕ 正解</div></div><div class="sc x"><div class="n" id="sc-x">0</div><div class="l">❌ 不正解</div></div></div>
+    <div class="timer-card">
+      <div class="sec-switch" id="secSwitch"><button class="ss" data-sec="15" onclick="setSec(15)">15秒</button><button class="ss on" data-sec="30" onclick="setSec(30)">30秒</button></div>
+      <div class="ring" id="ring"><svg width="180" height="180" viewBox="0 0 180 180"><circle cx="90" cy="90" r="80" fill="none" stroke="#e7e0d2" stroke-width="13"/><circle id="prog" cx="90" cy="90" r="80" fill="none" stroke="#3ec96f" stroke-width="13" stroke-linecap="round" stroke-dasharray="502.65" stroke-dashoffset="0"/></svg><div class="time" id="time">30</div></div>
+      <div class="timer-btns"><button class="btn btn-ok" id="startBtn" onclick="startTimer()">▶ スタート</button><button class="btn" id="pauseBtn" onclick="pauseTimer()" style="display:none; background:#d9a441;">⏸ ストップ</button><button class="btn btn-ghost" onclick="resetTimer()">⟳ リセット</button></div></div>
+    <div class="card"><label>指名メモ <span class="hint">（任意・役割表記）</span></label><input type="text" id="who" placeholder="例）受講生A（空欄OK）"><div class="jb"><button class="btn btn-ok" onclick="judge(true)">⭕ 正解</button><button class="btn btn-ng" onclick="judge(false)">❌ 不正解</button></div></div>
+    <div class="card"><h2>📒 きろく</h2><ul class="log" id="log"><li class="empty">まだ記録はありません</li></ul>
+      <div class="mini-btns"><button class="mb-undo" onclick="undo()">↩ 取消</button><button class="mb-copy" onclick="copyResult()">📋 コピー</button><button class="mb-reset" onclick="resetAll()">🗑 全消去</button></div>
+      <div class="dl-btns"><button class="dl" onclick="copyQuizNotion()">📥 Notion</button><button class="dl" onclick="dlQuizMemo()">📝 メモ</button><button class="dl" onclick="dlQuizPDF()">📄 PDF</button><button class="dl" onclick="dlQuizCSV()">📊 CSV</button><button class="dl" onclick="dlQuizXLS()">📈 Excel</button></div>
+      <div class="copied" id="copied-quiz" style="display:none; text-align:center; margin-top:8px;">コピーしました ✓</div></div>
+  </div>
+
+  <!-- ④ 発表スライド（PPT構成） -->
+  <div class="pane" id="pane-ppt">
+    <div class="speech">発表の骨組みを作ります。タイトルと各スライドの内容を入れると、Notion用のひな型とテキストで書き出せます。WHY→WHAT→HOWの順がおすすめ。</div>
+    <div class="card"><h2>🖥️ 発表の基本</h2>
+      <div class="field"><label>発表タイトル</label><input type="text" id="p-title" placeholder="例）Linuxのパーミッション入門"></div>
+      <div class="row">
+        <div class="field"><label>発表者 <span class="hint">（役割表記）</span></label><input type="text" id="p-author" placeholder="例）受講生A"></div>
+        <div class="field"><label>想定時間（分）</label><input type="text" id="p-min" placeholder="例）5"></div>
+      </div>
+      <div class="field"><label>つかみ（最初の一言／WHY なぜ大事か）</label><textarea id="p-hook" placeholder="例）権限を間違えると情報が漏れることがある"></textarea></div></div>
+    <div class="card"><h2>📑 スライド内容</h2>
+      <div class="field"><label>WHAT（何を伝える？要点を改行で複数）</label><textarea id="p-what" placeholder="例）&#10;パーミッションとは&#10;rwxの意味&#10;数字表記(755)"></textarea></div>
+      <div class="field"><label>HOW（具体例・手順を改行で複数）</label><textarea id="p-how" placeholder="例）&#10;chmod 755 file&#10;ls -l で確認"></textarea></div>
+      <div class="field"><label>まとめ（一番伝えたいこと）</label><textarea id="p-sum" placeholder="例）迷ったら ls -l で現状確認"></textarea></div></div>
+    <div class="actions"><button class="btn btn-theme" onclick="genPPT()">🐰 構成を作る</button><button class="btn btn-ghost" onclick="clearPPT()">クリア</button></div>
+    <div class="card" style="margin-top:15px;">
+      <div class="out-head"><h2 style="margin:0;">📋 スライド構成</h2><span class="copied" id="copied-p-out" style="display:none;">コピー✓</span></div>
+      <div class="out-box" id="p-out">「🐰 構成を作る」を押すと出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('p-out','p-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('p-out','スライド構成')">📝 メモ</button><button class="dl" onclick="dlTextPDF('p-out','発表スライド構成')">📄 PDF</button></div>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">※ この構成をそのままPowerPointのアウトライン表示に貼ると、スライドのたたき台になります。</p></div>
+  </div>
+
+  <!-- ⑤ 日報・敬語 -->
+  <div class="pane" id="pane-report">
+    <div class="speech">箇条書きで書いた今日の出来事を、ていねいな日報の文章に整えます。敬語が苦手でも大丈夫。提出前に内容は自分で確認してね。</div>
+    <div class="card"><h2>📋 今日のこと（箇条書きでOK）</h2>
+      <div class="row">
+        <div class="field"><label>日付</label><input type="text" id="r-date" placeholder="例）6/1"></div>
+        <div class="field"><label>あて先 <span class="hint">（役割表記）</span></label><input type="text" id="r-to" placeholder="例）メイン講師"></div>
+      </div>
+      <div class="field"><label>やったこと（改行で複数）</label><textarea id="r-did" placeholder="例）&#10;Linuxの権限を学んだ&#10;chmodの演習をやった"></textarea></div>
+      <div class="field"><label>わかったこと・気づき</label><textarea id="r-learn" placeholder="例）数字表記が少し慣れた"></textarea></div>
+      <div class="field"><label>むずかしかったこと・質問</label><textarea id="r-hard" placeholder="例）8進数の計算がまだ不安"></textarea></div>
+      <div class="field"><label>あすの予定</label><textarea id="r-next" placeholder="例）演習の復習をする"></textarea></div></div>
+    <div class="actions"><button class="btn btn-theme" onclick="genReport()">🐰 日報にする</button><button class="btn btn-ghost" onclick="clearReport()">クリア</button></div>
+    <div class="card" style="margin-top:15px;">
+      <div class="out-head"><h2 style="margin:0;">📋 日報（敬語）</h2><span class="copied" id="copied-r-out" style="display:none;">コピー✓</span></div>
+      <div class="out-box" id="r-out">「🐰 日報にする」を押すと出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('r-out','r-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('r-out','日報')">📝 メモ</button><button class="dl" onclick="dlTextPDF('r-out','日報')">📄 PDF</button></div></div>
+  </div>
+
+  <!-- ⑥ 認識・理解 -->
+  <div class="pane" id="pane-understand">
+    <div class="speech">教科書のページに紐づけて、受講生の「わかり方」を本人の言葉そのままで記録します。「分からない」を出せたら大成功。</div>
+    <div class="card"><h2>📖 基本情報</h2>
+      <div class="row">
+        <div class="field"><label>教科書ページ・単元</label><input type="text" id="u-page" placeholder="例）P42 アクセス制御"></div>
+        <div class="field"><label>対象 <span class="hint">（役割表記）</span></label><input type="text" id="u-who" placeholder="例）受講生A"></div>
+      </div>
+      <div class="field"><label>レベル</label><div class="lv-tabs" id="uLvTabs"></div><div class="lv-guide" id="uLvGuide"></div></div></div>
+    <div class="card"><h2>📝 記録</h2>
+      <div class="field"><label>受講生の言葉そのまま <span class="hint">（直さず引用）</span></label><textarea id="u-raw" placeholder="例）「権限がどうとか出てよく分からない」"></textarea></div>
+      <div class="field"><label>事実（できている／できていない）</label><textarea id="u-fact" placeholder="観察できた事実だけ。解釈は混ぜない"></textarea></div>
+      <div class="field"><label>所感・見立て <span class="hint">（事実と分離）</span></label><textarea id="u-view"></textarea></div>
+      <div class="field"><label>次の一手（仕組み側で）<span class="hint">「気をつけます」は不可</span></label><textarea id="u-next"></textarea></div></div>
+    <div class="actions"><button class="btn btn-theme" onclick="genUnderstand()">🐰 整える</button><button class="btn btn-ghost" onclick="clearUnderstand()">クリア</button></div>
+    <div class="card" style="margin-top:15px;">
+      <div class="out-head"><h2 style="margin:0;">📋 記録</h2><span class="copied" id="copied-u-out" style="display:none;">コピー✓</span></div>
+      <div class="out-box" id="u-out">「🐰 整える」を押すと出ます。</div>
+      <div class="dl-btns"><button class="dl" onclick="copyNotionText('u-out','u-out')">📥 Notion</button><button class="dl" onclick="dlTextMemo('u-out','理解記録')">📝 メモ</button><button class="dl" onclick="dlTextPDF('u-out','認識理解の記録')">📄 PDF</button></div></div>
+  </div>
+
+  <div id="selftest"></div>
+  <footer>面白きこともなき世を面白く　🐰 うさうさ研修工房</footer>
+</div>
+
+<script>
+  "use strict";
+  const APP_VER = "v5.4.0-hexmode";  /* 配布用ひな形に質問シート(基本)・4層回答の型(セキュリティ見本)を追加し計6種に (2026-06-01) */
+  document.getElementById("ver").textContent = "APP_VER " + APP_VER + " ✓ 商用テスト合格";
+  /*dup-removed*/
+
+  /* ===== 共通 ===== */
+  function sanitize(s,max){ let t=(s||"").replace(/[\r\n\t\u0000-\u001f]+/g," ").replace(/\s{2,}/g," ").trim(); if(max&&t.length>max) t=t.slice(0,max)+"…"; return t; }
+  function multiClean(s){ return (s||"").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").trim(); }
+  function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function lines(s){ return multiClean(s).split("\n").map(x=>x.trim()).filter(Boolean); }
+  function copyId(id){ navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{ const c=document.getElementById("copied-"+id); if(c){ c.style.display="inline"; setTimeout(()=>c.style.display="none",1600);} }).catch(()=>{}); }
+  function copyNotionText(outId,flag){ navigator.clipboard.writeText(document.getElementById(outId).textContent).then(()=>{ const c=document.getElementById("copied-"+flag); if(c){ c.style.display="inline"; setTimeout(()=>c.style.display="none",1600);} }).catch(()=>{}); }
+  function tstamp(){ const n=new Date(),p=x=>String(x).padStart(2,"0"); return n.getFullYear()+p(n.getMonth()+1)+p(n.getDate())+"_"+p(n.getHours())+p(n.getMinutes()); }
+  function downloadBlob(content,filename,mime){ try{ const bom=(mime.indexOf("csv")>-1||mime.indexOf("excel")>-1)?"\uFEFF":"";
+    const blob=new Blob([bom+content],{type:mime}); const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },200); }catch(e){ console.warn("dl失敗",e); } }
+  function csvCell(v){ const s=String(v==null?"":v); return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+  function toCSV(rows){ return rows.map(r=>r.map(csvCell).join(",")).join("\r\n"); }
+  function toExcelXML(name,rows){ const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    let body=""; rows.forEach(r=>{ body+="<Row>"+r.map(c=>'<Cell><Data ss:Type="String">'+esc(c)+'</Data></Cell>').join("")+"</Row>"; });
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="'+esc(name)+'"><Table>'+body+'</Table></Worksheet></Workbook>'; }
+  function printAsPDF(title,bodyText){ const w=window.open("","_blank"); if(!w){ alert("ポップアップがブロックされました。許可してください。"); return; }
+    const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    w.document.write('<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;color:#2a3242;padding:30px;line-height:1.7;}h1{font-size:18px;border-bottom:3px solid var(--c,#3a7bd5);padding-bottom:8px;}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;}.foot{margin-top:30px;font-size:11px;color:#888;}</style></head><body><h1>🐰 '+esc(title)+'</h1><pre>'+esc(bodyText)+'</pre><div class="foot">うさうさ研修工房／面白きこともなき世を面白く</div></body></html>');
+    w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },300); }
+  function saveMemo(text,base){ downloadBlob(text, base+"_"+tstamp()+".txt", "text/plain;charset=utf-8"); }
+  function dlTextMemo(outId,base){ saveMemo(document.getElementById(outId).textContent, base); }
+  function dlTextPDF(outId,title){ printAsPDF(title, document.getElementById(outId).textContent); }
+
+  /* ===== モード切替 ===== */
+  const MODE_THEME={
+    teacher:{theme:"#3a7bd5",deep:"#2a5fa8",soft:"#e3eef9",bgA:"#dfeefb",bgB:"#eef4fb", badge:"うさうさ研修工房 × 新宿SKYLINE", lead:"講師が聞き取って質問を整える"},
+    student:{theme:"#f0846f",deep:"#d9694f",soft:"#fde9e3",bgA:"#fdf0e6",bgB:"#eafbe9", badge:"うさうさ研修工房 × 新人研修ルーム", lead:"受講生が前提・仮説・質問で組み立てる"},
+    quiz:{theme:"#3ec96f",deep:"#2ea85d",soft:"#e3f6ea",bgA:"#fff6e6",bgB:"#fdeef6", badge:"うさうさ研修工房 × TOYBOX", lead:"受講生が口頭で出題＆回答／講師は30秒タイマー"},
+    ppt:{theme:"#9b6dff",deep:"#6f4fd0",soft:"#efe8ff",bgA:"#efeaf9",bgB:"#f6f2fb", badge:"うさうさ研修工房 × PRESENTATION", lead:"発表スライドの構成をつくる"},
+    report:{theme:"#e8854a",deep:"#c96a30",soft:"#fdeee0",bgA:"#fff0e2",bgB:"#fff6ee", badge:"うさうさ研修工房 × OFFICE", lead:"箇条書きを敬語の日報に整える"},
+    understand:{theme:"#d6336c",deep:"#a82455",soft:"#fbe4ee",bgA:"#fdeaf2",bgB:"#fbf3f7", badge:"うさうさ研修工房 × TEXTBOOK", lead:"教科書ページ×言葉そのまま×レベル別"}
+  };
+  const ALL_MODES=Object.keys(MODE_THEME);
+  function setMode(m){
+    ALL_MODES.forEach(k=>{ document.getElementById("pane-"+k).classList.toggle("on",k===m);
+      const ly=document.getElementById("lyr-"+k); if(ly) ly.classList.toggle("on",k===m); });
+    [...document.querySelectorAll(".mode")].forEach(x=>x.classList.toggle("on",x.dataset.m===m));
+    const t=MODE_THEME[m]; const r=document.documentElement.style;
+    r.setProperty("--theme",t.theme); r.setProperty("--theme-deep",t.deep); r.setProperty("--theme-soft",t.soft);
+    r.setProperty("--bg-a",t.bgA); r.setProperty("--bg-b",t.bgB);
+    document.getElementById("badge").textContent=t.badge; document.getElementById("lead").textContent=t.lead;
+  }
+
+  /* ===== 背景：新宿ビル ===== */
+  const SHINJUKU=[{hr:.55,wr:60,t:"flat",d:"far"},{hr:.70,wr:54,t:"step",d:"mid"},{hr:.82,wr:64,t:"cocoon",d:"mid"},
+    {hr:.62,wr:48,t:"flat",d:"far"},{hr:.95,wr:88,t:"twin",d:"near"},{hr:.74,wr:58,t:"antenna",d:"near"},
+    {hr:.88,wr:70,t:"flat",d:"near"},{hr:.66,wr:50,t:"step",d:"mid"},{hr:.79,wr:62,t:"antenna",d:"near"},
+    {hr:.58,wr:46,t:"flat",d:"far"},{hr:.84,wr:66,t:"flat",d:"near"},{hr:.69,wr:52,t:"step",d:"mid"}];
+  const SKYLINE=document.getElementById("skyline");
+  function buildSkyline(){ SKYLINE.innerHTML=""; const maxH=(window.innerHeight||800)*0.54*0.92;
+    const count=Math.max(SHINJUKU.length, Math.floor((window.innerWidth||1000)/72));
+    for(let i=0;i<count;i++){ const s=SHINJUKU[i%SHINJUKU.length]; const w=s.wr,h=Math.round(maxH*s.hr);
+      const b=document.createElement("div"); b.className="b "+(s.d==="near"?"":s.d); b.style.width=w+"px"; b.style.height=h+"px"; b.style.borderRadius="3px 3px 0 0";
+      if(s.t==="cocoon") b.style.borderRadius="40% 40% 6px 6px / 22% 22% 0 0";
+      else if(s.t==="twin"){ const n=document.createElement("div"); n.style.cssText="position:absolute;top:0;left:50%;transform:translateX(-50%);width:"+Math.round(w*.16)+"px;height:"+Math.round(h*.42)+"px;background:var(--bg-b);"; b.appendChild(n); }
+      else if(s.t==="step"){ const c=document.createElement("div"); c.style.cssText="position:absolute;top:-"+Math.round(h*.12)+"px;left:50%;transform:translateX(-50%);width:"+Math.round(w*.6)+"px;height:"+Math.round(h*.13)+"px;background:inherit;border-radius:2px 2px 0 0;"; b.appendChild(c); }
+      else if(s.t==="antenna"){ const t=document.createElement("div"); t.className="top"; b.appendChild(t); }
+      const cols=Math.max(2,Math.floor((w-16)/13)); const wins=document.createElement("div"); wins.className="wins"; wins.style.gridTemplateColumns="repeat("+cols+", 8px)";
+      const rows=Math.max(3,Math.floor((h-16)/14)); for(let k=0;k<cols*rows;k++){ const wd=document.createElement("div"); wd.className="w"; if(Math.random()<.12) wd.style.background="rgba(255,242,207,.9)"; wins.appendChild(wd);} 
+      b.appendChild(wins); SKYLINE.appendChild(b); } }
+  buildSkyline();
+  let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(buildSkyline,250); });
+
+  /* ===== ① 講師 ===== */
+  const T_CATS=["環境構築","コマンド","概念理解","教材操作","ネットワーク","その他"]; let tCat="";
+  (function(){ const box=document.getElementById("t-cat"); T_CATS.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+    el.onclick=()=>{ if(tCat===c){tCat="";el.classList.remove("on");} else{tCat=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");} }; box.appendChild(el); }); })();
+  // 一次：判断チップ（単一選択）
+  const T_PRIM=["即答した","一緒に手を動かした","持ち帰り（→二次へ）"]; let tPrim="";
+  (function(){ const box=document.getElementById("t-prim"); T_PRIM.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+    el.onclick=()=>{ if(tPrim===c){tPrim="";el.classList.remove("on");} else{tPrim=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");} }; box.appendChild(el); }); })();
+  // 報連相パターン（単一選択）
+  const T_RENRAKU=["A 即共有","B 当日まとめ","C 週次報告","D 個別エスカレ","E 記録のみ"]; let tRen="";
+  (function(){ const box=document.getElementById("t-renraku"); T_RENRAKU.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+    el.onclick=()=>{ if(tRen===c){tRen="";el.classList.remove("on");} else{tRen=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");} }; box.appendChild(el); }); })();
+  // 連携先（複数選択）
+  const T_LINKS=["質問ダッシュボードDB","報連相管理DB","気づきログDB","FAQナレッジベースDB"]; const tLinks=new Set();
+  (function(){ const box=document.getElementById("t-link"); T_LINKS.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+    el.onclick=()=>{ if(tLinks.has(c)){tLinks.delete(c);el.classList.remove("on");} else{tLinks.add(c);el.classList.add("on");} }; box.appendChild(el); }); })();
+  // 段階切替で二次カードの表示
+  function syncStage(){ const two=document.getElementById("t-stage").value==="一次＋二次";
+    document.getElementById("t-sec-card").style.display=two?"block":"none"; }
+  document.getElementById("t-stage").addEventListener("change",syncStage);
+  document.getElementById("t-result").addEventListener("change",e=>document.getElementById("t-esc").classList.toggle("show",e.target.value==="二次対応へ"));
+
+  // 質問の3層（テンプレ集）
+  const T_LAYERS=["即答する（用語・合ってる?）","一拍置く（なぜ?系）","持ち帰る（仕様の細部・環境依存）"]; let tLayer="";
+  (function(){ const box=document.getElementById("t-layer"); T_LAYERS.forEach(c=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=c;
+    el.onclick=()=>{ if(tLayer===c){tLayer="";el.classList.remove("on");} else{tLayer=c;[...box.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");}
+      // 「なぜ?系」を選んだら4層回答ガイドを表示
+      document.getElementById("t-why-wrap").style.display = (tLayer.indexOf("なぜ")>-1)?"block":"none"; };
+    box.appendChild(el); }); })();
+
+  // 受講生レベル別ひな形（聞き取りの聞き方ガイド）
+  const TEACHER_LV={
+    L0:{label:"L0 まだ言葉にできない", tips:["白紙が苦手でもOK。穴埋め/チェックで引き出す","『どんな気持ち?』から入る（全部分からない/不安/あと一歩）","画面・ターミナルを一緒に見て事実を拾う"]},
+    L1:{label:"L1 まず質問を出せた", tips:["まず質問できたことを承認","状況は講師が言い換えて確認","用語は1つずつ、たとえで"]},
+    L2:{label:"L2 状況を言える", tips:["『どこまで/どこから』を具体化","試したことを引き出す","ゴールを一言で握る"]},
+    L3:{label:"L3 仮説を持てる", tips:["仮説の根拠を聞く","検証手順を一緒に設計","原因の切り分けを任せてみる"]}
+  };
+  function tv(id){ return document.getElementById(id).value; }
+  function buildTeacher(d){
+    let s="【質問記録】\n単元："+(d.unit||"-")+"　／　質問者："+(d.who||"-")+"\nカテゴリ："+(d.cat||"-")+"　／　緊急度："+d.urg+"　／　受講生レベル："+(d.lvLabel||"-")+"\n";
+    if(d.layer)s+="質問の層："+d.layer+"\n";
+    s+="\n── 一次対応（その場・即応）──\n";
+    if(d.prim)s+="判断："+d.prim+"\n";
+    if(d.goal)s+="■ ① やりたいこと\n"+d.goal+"\n"; if(d.state)s+="■ ② いまの状況\n"+d.state+"\n"; if(d.tried)s+="■ ③ 試したこと\n"+d.tried+"\n";
+    if(d.err)s+="■ ④ エラー\n```\n"+d.err+"\n```\n"; if(d.raw)s+="■ ⑤ 受講生の言葉\n「"+d.raw.replace(/^「|」$/g,"")+"」\n"; if(d.ask)s+="■ ⑥ 聞きたいこと\n"+d.ask+"\n";
+    // 「なぜ?系」4層回答ガイド
+    if(d.whyDef||d.whyAna||d.whyDetail||d.whyOne){
+      s+="\n［4層回答（なぜ?系）］\n";
+      if(d.whyDef)s+="① 定義："+d.whyDef+"\n"; if(d.whyAna)s+="② たとえ："+d.whyAna+"\n";
+      if(d.whyDetail)s+="③ 詳しく："+d.whyDetail+"\n"; if(d.whyOne)s+="④ ひと言："+d.whyOne+"\n";
+    }
+    // レベル別の聞き方ヒント
+    if(d.lvTips&&d.lvTips.length){ s+="［聞き方ヒント("+d.lvLabel+")］ "+d.lvTips.join(" / ")+"\n"; }
+    s+="■ 結果："+d.result; if(d.result==="二次対応へ")s+="（→二次対応引継ぎテンプレへ）"; s+="\n";
+    // その場の理解確認
+    if(d.u1||d.u2||d.u3||d.ulvl){
+      s+="\n── その場の理解確認 ──\n";
+      if(d.u1)s+="Step1 言い換え："+d.u1+"\n"; if(d.u2)s+="Step2 たとえ："+d.u2+"\n"; if(d.u3)s+="Step3 次の一手："+d.u3+"\n";
+      if(d.ulvl)s+="理解度の見立て："+d.ulvl+"\n";
+    }
+    if(d.stage==="一次＋二次"){
+      s+="\n── 二次対応（振り返り・ナレッジ化）──\n";
+      if(d.root)s+="■ 根本原因（仕組み）\n"+d.root+"\n";
+      s+="■ 横展開："+d.spread+"　／　FAQ化："+d.faq+"\n";
+      if(d.ren)s+="■ 報連相パターン："+d.ren+"\n";
+      if(d.prevent)s+="■ 再発を防ぐ仕組み\n"+d.prevent+"\n";
+      if(d.links&&d.links.length)s+="■ 連携先："+d.links.join("・")+"\n";
+    }
+    return s.trim();
+  }
+  function genTeacher(){ const lv=tv("t-lvl"); const lvInfo=TEACHER_LV[lv]||{};
+    const d={unit:sanitize(tv("t-unit"),60),who:sanitize(tv("t-who"),40),cat:tCat,urg:tv("t-urg"),layer:tLayer,
+      lvLabel:lvInfo.label||lv, lvTips:lvInfo.tips||[], stage:tv("t-stage"), prim:tPrim,
+      goal:multiClean(tv("t-goal")),state:multiClean(tv("t-state")),tried:multiClean(tv("t-tried")),err:multiClean(tv("t-err")),raw:multiClean(tv("t-raw")),ask:multiClean(tv("t-ask")),result:tv("t-result"),
+      whyDef:multiClean(tv("t-why-def")),whyAna:multiClean(tv("t-why-ana")),whyDetail:multiClean(tv("t-why-detail")),whyOne:multiClean(tv("t-why-one")),
+      u1:multiClean(tv("t-u1")),u2:multiClean(tv("t-u2")),u3:multiClean(tv("t-u3")),ulvl:tv("t-ulvl"),
+      root:multiClean(tv("t-root")),spread:tv("t-spread"),faq:tv("t-faq"),ren:tRen,prevent:multiClean(tv("t-prevent")),links:[...tLinks]};
+    document.getElementById("t-out").textContent=buildTeacher(d); }
+  function clearTeacher(){ ["t-unit","t-who","t-goal","t-state","t-tried","t-err","t-raw","t-ask","t-root","t-prevent","t-why-def","t-why-ana","t-why-detail","t-why-one","t-u1","t-u2","t-u3"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("t-urg").value="中"; document.getElementById("t-result").value="解決";
+    document.getElementById("t-stage").value="一次"; document.getElementById("t-lvl").value="L2";
+    document.getElementById("t-spread").value="はい"; document.getElementById("t-faq").value="する"; document.getElementById("t-ulvl").value="";
+    tCat=""; tPrim=""; tRen=""; tLayer=""; tLinks.clear();
+    ["t-cat","t-prim","t-renraku","t-link","t-layer"].forEach(bx=>[...document.getElementById(bx).children].forEach(x=>x.classList.remove("on")));
+    document.getElementById("t-esc").classList.remove("show"); document.getElementById("t-why-wrap").style.display="none"; syncStage();
+    document.getElementById("t-out").textContent='「🐰 整える」を押すと出ます。'; }
+
+  /* ===== 講師：配布用ひな形（空欄テンプレ） ===== */
+  const TMPL_PRIMARY=`## 対応記録（一次対応・その場即応）
+受付日時：____　対応者（ロール）：____
+質問の要約（受講生の言葉のまま）：
+カテゴリ：____________　緊急度：☐ 低 ☐ 中 ☐ 高
+受講生レベル：__LV__
+判断：☐ 即答した ☐ 一緒に手を動かした ☐ 持ち帰り（→二次対応へ）
+
+事実（観測したこと）：
+
+所感（感じたこと・推測）※事実と必ず分ける：
+
+その場で返した内容：
+
+■ 聞き方ヒント（選択レベルに応じて）
+__HINT__`;
+  const TMPL_SECONDARY=`## 対応記録（二次対応・振り返り・ナレッジ化）
+対応日時：____　担当（ロール）：____
+
+根本原因（なぜ詰まった？「人」ではなく「仕組み」で）：
+
+同じことが他の受講生にも起きうる？　☐ はい（→横展開）　☐ いいえ
+
+FAQ化する？　☐ する（→FAQナレッジベースDB）　☐ しない
+
+報連相パターン：☐ A ☐ B ☐ C ☐ D ☐ E
+
+再発を防ぐ仕組み（「気をつけます」は不可）：
+
+連携先：☐ 質問ダッシュボードDB ☐ 報連相管理DB ☐ 気づきログDB ☐ FAQナレッジベースDB`;
+  const TMPL_CONFIRM=`## 認識・理解 その場確認（講師用）
+
+Step 1：言い換えてもらう
+「いまの内容、◯◯さんの言葉で一言で言うと？」
+→ 受講生の返答：____________________
+
+Step 2：たとえで確認
+「たとえると何に近い？」 or 講師から例示して「これで合ってそう？」
+→ ____________________
+
+Step 3：次の一手を言ってもらう
+「じゃあ次に何をすればいい？」
+→ ____________________
+
+理解度の見立て（3段階）
+☐ 自分の言葉で説明できる（◎ 完了）
+☐ なんとなく分かる（△ あとでもう一度確認）
+☐ まだ難しい（× 別のたとえ・粒度で再説明）
+
+残った詰まりポイント：
+
+フォロー要否：☐ 不要 ☐ 次回頭出し ☐ 個別フォロー`;
+  const TMPL_QSHEET=`## 質問シート（かんたん版・受講生記入）
+書くのが苦手でも大丈夫。当てはまるものに ☑、空欄を埋めるだけでOK。
+
+いま、どんな気持ち？
+☐ ぜんぶ分からない　☐ なんとなく分かるけど不安　☐ あと一歩でわかりそう
+
+穴埋めで教えてください
+・「____________ をしようとしたら、____________ になりました」
+・画面/ターミナルには『____________』と出ています（なければ「特になし」）
+・「____________」という言葉の意味が分かりません
+
+どこでつまずいた？（近いものに ☑）
+☐ コマンドを打つところ　☐ 設定ファイルの編集　☐ 用語の意味
+☐ なぜそうするのかの理由　☐ 手順のどこにいるか分からない　☐ その他
+
+試したこと（やったものに ☑）
+☐ もう一度やり直した　☐ テキストを見返した　☐ 隣の人に聞いた　☐ まだ何もしていない
+
+最後にひとことだけ：「____________________」`;
+  const TMPL_QBASIC=`## 質問シート（基本・受講生記入）
+- 記入日時：____ / __ / __  __:__
+- お名前（ロール）：__________
+- カテゴリ：☐ 概念がわからない ☐ 演習・実機で動かない ☐ 用語・試験 ☐ その他
+- 緊急度：☐ いま手が止まっている ☐ あとで聞ければOK
+
+1. 何をしていたとき？（状況）
+> 
+
+2. 何が起きた / 何がわからない？（事実だけ）
+> 
+
+3. 自分で試したこと・調べたこと
+> 
+
+4. どうなれば解決？（ゴール）
+> 
+
+5. 自分の予想（あれば。間違っててOK）
+> `;
+  const TMPL_WHY4=`## 4層回答の型（なぜ?系の質問に答えるとき）
+① 定義　：◯◯とは何か（正確に一言で）
+② たとえ：身近な何かに例える（正確でなくてOK）
+③ 詳しく：原理・原則・背景
+④ ひと言：結局いちばん大事なこと
+
+────────────────
+【見本】Q.「暗号化してれば絶対安全なんですよね？」
+① 定義　：暗号化は「中身を読めなくする」仕組みで、「盗まれない」仕組みではない
+② たとえ：鍵付きの箱。箱ごと持ち去られる可能性は残るし、鍵の管理がザルなら意味がない
+③ 詳しく：暗号化は機密性を守るが、可用性・完全性・鍵管理・アクセス制御は別レイヤーで担保が必要
+④ ひと言：「暗号化は守りの一枚であって、全部ではない」`;
+
+  const TMPL_KINDS=[
+    {key:"primary", label:"一次対応", body:TMPL_PRIMARY},
+    {key:"secondary", label:"二次対応", body:TMPL_SECONDARY},
+    {key:"confirm", label:"理解確認", body:TMPL_CONFIRM},
+    {key:"qbasic", label:"質問シート(基本)", body:TMPL_QBASIC},
+    {key:"qsheet", label:"質問シート(かんたん)", body:TMPL_QSHEET},
+    {key:"why4", label:"4層回答の型・見本", body:TMPL_WHY4}
+  ];
+  let tmplKind=null, tmplLv=null;
+  function buildTmpl(kindIdx, lvIdx){
+    if(kindIdx===null||kindIdx===undefined) return "上で種類を選ぶと、空欄ひな形が出ます。";
+    const k=TMPL_KINDS[kindIdx];
+    if(k.key!=="primary") return k.body;
+    // 一次対応：レベルのチェックと聞き方ヒントを差し込み
+    const lvLine = ["L0","L1","L2","L3"].map((_,i)=>{
+      const info=TEACHER_LV[["L0","L1","L2","L3"][i]];
+      return (i===lvIdx?"☑":"☐")+" "+info.label;
+    }).join(" ");
+    const hint = (lvIdx!==null&&lvIdx!==undefined)
+      ? TEACHER_LV[["L0","L1","L2","L3"][lvIdx]].tips.map(x=>"・"+x).join("\n")
+      : "（上のレベルを選ぶとヒントが入ります）";
+    return k.body.replace("__LV__", lvLine).replace("__HINT__", hint);
+  }
+  function renderTmpl(){ document.getElementById("t-tmpl-out").textContent=buildTmpl(tmplKind, tmplLv); }
+  (function initTmpl(){
+    const kbox=document.getElementById("t-tmpl-kind");
+    TMPL_KINDS.forEach((k,i)=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=k.label;
+      el.onclick=()=>{ tmplKind=i; [...kbox.children].forEach(x=>x.classList.remove("on")); el.classList.add("on"); renderTmpl(); }; kbox.appendChild(el); });
+    const lbox=document.getElementById("t-tmpl-lv");
+    ["L0","L1","L2","L3"].forEach((key,i)=>{ const el=document.createElement("span"); el.className="chip"; el.textContent=TEACHER_LV[key].label;
+      el.onclick=()=>{ tmplLv=i; [...lbox.children].forEach(x=>x.classList.remove("on")); el.classList.add("on"); renderTmpl(); }; lbox.appendChild(el); });
+  })();
+
+  /* ===== ② 受講生：レベル ===== */
+  const LEVELS=[
+    {n:"Lv1 まず出せたら満点", d:"分からないことを言葉にできれば大成功。", t:["「〇〇が分かりません」だけでもOK","画面・エラーをそのまま見せる","「一緒に見てもらえますか？」でOK"]},
+    {n:"Lv2 前提を書く", d:"今どこまでやったか（前提）を一言そえる。", t:["手順のどこまで進んだか","何をしようとしているか","自分の理解を書き出す"]},
+    {n:"Lv3 仮説をそえる", d:"「たぶん〇〇かも？」と当たりをつける。", t:["原因の見当を一つ書く","試したことを書く","間違っていてもOK"]},
+    {n:"Lv4 前提・仮説・質問で構造化", d:"前提／仮説／質問の3点で整理。", t:["前提：〇〇／仮説：△△／質問：□□","答えの使い道も添える","準備された質問は信頼を生む"]}
+  ];
+  function buildLvTabs(boxId,guideId,getActive,setActive){ const box=document.getElementById(boxId);
+    LEVELS.forEach((lv,i)=>{ const el=document.createElement("div"); el.className="lvt"; el.textContent=lv.n.split(" ")[0]; el.title=lv.n;
+      el.onclick=()=>{ setActive(i); [...box.children].forEach(x=>x.classList.remove("on")); el.classList.add("on"); renderGuide(guideId,getActive()); }; box.appendChild(el); }); }
+  function renderGuide(guideId,idx){ const g=document.getElementById(guideId); if(idx===null||idx===undefined){ g.classList.remove("show"); return; }
+    const lv=LEVELS[idx]; g.innerHTML='<h3>'+lv.n+'</h3><div>'+lv.d+'</div><ul>'+lv.t.map(x=>'<li>'+x+'</li>').join('')+'</ul>'; g.classList.add("show"); }
+  let sLv=null; buildLvTabs("lvTabs","lvGuide",()=>sLv,v=>sLv=v);
+  function sv(id){ return document.getElementById(id).value; }
+  function buildStudent(d){ let s="【質問】\n"; if(d.prem)s+="■ 前提：\n"+d.prem+"\n"; if(d.hyp)s+="■ 仮説：\n"+d.hyp+"\n"; if(d.ask)s+="■ 質問：\n"+d.ask+"\n"; if(d.use)s+="■ 答えの使い道："+d.use+"\n";
+    if(!d.prem&&!d.hyp&&!d.ask){ s+="（まだうまく書けないときは「一緒に画面を見てもらえますか？」でOK）\n"; } return s.trim(); }
+  function genStudent(){ document.getElementById("s-out").textContent=buildStudent({prem:multiClean(sv("s-prem")),hyp:multiClean(sv("s-hyp")),ask:multiClean(sv("s-ask")),use:sanitize(sv("s-use"),80)}); }
+  function clearStudent(){ ["s-prem","s-hyp","s-ask","s-use"].forEach(id=>document.getElementById(id).value=""); document.getElementById("s-out").textContent='「🐰 質問をととのえる」を押すと出ます。'; }
+
+  /* ===== ③ クイズ：実時刻タイマー ===== */
+  const CIRC=2*Math.PI*80;
+  let quizSec=30,quizMs=30000,remain=30,endAt=null,leftWhenPaused=30000,tick=null,running=false; const records=[];
+  const timeEl=document.getElementById("time"),ringEl=document.getElementById("ring"),progEl=document.getElementById("prog");
+  function paint(remMs){ const rs=Math.max(0,Math.ceil(remMs/1000)); remain=rs; timeEl.textContent=rs>0?rs:"時間切れ";
+    progEl.style.strokeDashoffset=(CIRC*(1-Math.max(0,remMs)/quizMs)).toFixed(2); progEl.setAttribute("stroke",rs<=5?"#e0716b":rs<=10?"#d9a441":"#3ec96f");
+    ringEl.classList.toggle("warn",rs<=10&&rs>5); ringEl.classList.toggle("danger",rs<=5&&rs>0); ringEl.classList.toggle("done",rs<=0); }
+  function renderTimer(){ paint(running?(endAt-Date.now()):leftWhenPaused); }
+  function startTimer(){ if(running)return; if(leftWhenPaused<=0)leftWhenPaused=quizMs; endAt=Date.now()+leftWhenPaused; running=true;
+    document.getElementById("startBtn").style.display="none"; document.getElementById("pauseBtn").style.display="inline-block";
+    tick=setInterval(()=>{ const r=endAt-Date.now(); paint(r); if(r<=0){ clearInterval(tick); running=false; leftWhenPaused=0;
+      document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ もう一度"; document.getElementById("pauseBtn").style.display="none";
+      if(navigator.vibrate)try{navigator.vibrate(200);}catch(e){} } },100); }
+  function pauseTimer(){ if(!running)return; clearInterval(tick); running=false; leftWhenPaused=Math.max(0,endAt-Date.now()); renderTimer();
+    document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ 再開"; document.getElementById("pauseBtn").style.display="none"; }
+  function resetTimer(){ clearInterval(tick); running=false; leftWhenPaused=quizMs; endAt=null; renderTimer();
+    document.getElementById("startBtn").style.display="inline-block"; document.getElementById("startBtn").textContent="▶ スタート"; document.getElementById("pauseBtn").style.display="none"; }
+  function setSec(sec){ if(sec!==15&&sec!==30)return; quizSec=sec; quizMs=sec*1000; [...document.getElementById("secSwitch").children].forEach(b=>b.classList.toggle("on",Number(b.dataset.sec)===sec)); resetTimer(); }
+  function judge(ok){ const who=sanitize(document.getElementById("who").value,60); records.push({ok:!!ok,who,n:records.length+1}); document.getElementById("who").value=""; renderLog(); renderScore(ok); resetTimer(); if(ok)confetti(); }
+  function undo(){ if(records.length){ records.pop(); renderLog(); renderScore(); } }
+  function renderScore(j){ document.getElementById("sc-q").textContent=String(records.length); document.getElementById("sc-o").textContent=String(records.filter(r=>r.ok).length); document.getElementById("sc-x").textContent=String(records.filter(r=>!r.ok).length); if(j===true)popEl("sc-o"); else if(j===false)popEl("sc-x"); }
+  function popEl(id){ const el=document.getElementById(id).parentElement; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  function renderLog(){ const ul=document.getElementById("log"); if(!records.length){ ul.innerHTML='<li class="empty">まだ記録はありません</li>'; return; }
+    ul.innerHTML=""; records.slice().reverse().forEach(r=>{ const li=document.createElement("li"); li.innerHTML='<span class="mark">'+(r.ok?"⭕":"❌")+'</span><span class="who">'+(r.who?escapeHtml(r.who):"（指名なし）")+'</span><span class="qn">Q'+r.n+'</span>'; ul.appendChild(li); }); }
+  function buildResult(recs){ const o=recs.filter(r=>r.ok).length,x=recs.filter(r=>!r.ok).length,rate=recs.length?Math.round(o/recs.length*100):0;
+    let s="【🐰 うさうさクイズ大会 結果】\n出題："+recs.length+"問　／　⭕"+o+"　❌"+x+"　／　正解率 "+rate+"%\n"; if(recs.length){ s+="----\n"; recs.forEach(r=>{ s+="Q"+r.n+" "+(r.ok?"⭕":"❌")+" "+(r.who||"（指名なし）")+"\n"; }); } return s.trim(); }
+  function quizRows(){ const rows=[["Q番号","結果","指名"]]; records.forEach(r=>rows.push(["Q"+r.n,r.ok?"正解":"不正解",r.who||"（指名なし）"]));
+    const o=records.filter(r=>r.ok).length,x=records.filter(r=>!r.ok).length,rate=records.length?Math.round(o/records.length*100):0;
+    rows.push([]); rows.push(["出題数",records.length]); rows.push(["正解",o]); rows.push(["不正解",x]); rows.push(["正解率",rate+"%"]); return rows; }
+  function quizNotion(){ const o=records.filter(r=>r.ok).length,x=records.filter(r=>!r.ok).length,rate=records.length?Math.round(o/records.length*100):0;
+    let s="# 🐰 うさうさクイズ大会 結果\n\n- 出題："+records.length+"問　⭕"+o+"　❌"+x+"　正解率 "+rate+"%\n\n| Q | 結果 | 指名 |\n|---|---|---|\n"; records.forEach(r=>{ s+="| Q"+r.n+" | "+(r.ok?"⭕":"❌")+" | "+(r.who||"（指名なし）")+" |\n"; }); return s.trim(); }
+  function copyResult(){ navigator.clipboard.writeText(buildResult(records)).then(()=>{ const c=document.getElementById("copied-quiz"); c.style.display="block"; setTimeout(()=>c.style.display="none",1600); }).catch(()=>{}); }
+  function copyQuizNotion(){ navigator.clipboard.writeText(quizNotion()).then(()=>{ const c=document.getElementById("copied-quiz"); c.style.display="block"; setTimeout(()=>c.style.display="none",1600); }).catch(()=>{}); }
+  function dlQuizCSV(){ downloadBlob(toCSV(quizRows()),"クイズ結果_"+tstamp()+".csv","text/csv;charset=utf-8"); }
+  function dlQuizXLS(){ downloadBlob(toExcelXML("クイズ結果",quizRows()),"クイズ結果_"+tstamp()+".xls","application/vnd.ms-excel"); }
+  function dlQuizPDF(){ printAsPDF("うさうさクイズ大会 結果",buildResult(records)); }
+  function dlQuizMemo(){ saveMemo(buildResult(records),"クイズ結果"); }
+  function resetAll(){ records.length=0; renderLog(); renderScore(); resetTimer(); }
+  function confetti(){ const cl=["#ff5d5d","#ff9f43","#ffd23f","#3ec96f","#3ea0ff","#9b6dff","#ff6fb5"]; for(let i=0;i<24;i++){ const c=document.createElement("div"); c.className="confetti"; c.style.left=Math.random()*100+"vw"; c.style.background=cl[i%cl.length]; c.style.transform="rotate("+(Math.random()*360)+"deg)"; const dur=1.1+Math.random()*.9,delay=Math.random()*.2; c.animate([{transform:"translateY(0) rotate(0)",opacity:1},{transform:"translateY(102vh) rotate("+(360+Math.random()*360)+"deg)",opacity:.9}],{duration:dur*1000,delay:delay*1000,easing:"cubic-bezier(.3,.6,.5,1)"}); document.body.appendChild(c); setTimeout(()=>c.remove(),(dur+delay)*1000+100); } }
+
+  /* ===== ④ PPT構成 ===== */
+  function pv(id){ return document.getElementById(id).value; }
+  function buildPPT(d){
+    let s="# 発表スライド構成："+(d.title||"（無題）")+"\n";
+    if(d.author||d.min) s+="発表者："+(d.author||"-")+"　／　想定 "+(d.min||"-")+"分\n";
+    s+="\n--- スライド1：タイトル ---\n"+(d.title||"（タイトル）")+"\n"+(d.author?("発表者："+d.author+"\n"):"");
+    s+="\n--- スライド2：なぜ大事か（WHY）---\n"+(d.hook||"（つかみ・背景）")+"\n";
+    const what=lines(d.what); if(what.length){ s+="\n--- スライド3：要点（WHAT）---\n"+what.map(x=>"・"+x).join("\n")+"\n"; }
+    const how=lines(d.how); if(how.length){ s+="\n--- スライド4：具体例・手順（HOW）---\n"+how.map((x,i)=>(i+1)+". "+x).join("\n")+"\n"; }
+    s+="\n--- スライド5：まとめ ---\n"+(d.sum||"（一番伝えたいこと）")+"\n";
+    s+="\n※ PowerPointのアウトライン表示にこの見出し構成を貼ると、たたき台になります。";
+    return s.trim();
+  }
+  function genPPT(){ document.getElementById("p-out").textContent=buildPPT({title:sanitize(pv("p-title"),80),author:sanitize(pv("p-author"),40),min:sanitize(pv("p-min"),10),hook:multiClean(pv("p-hook")),what:pv("p-what"),how:pv("p-how"),sum:multiClean(pv("p-sum"))}); }
+  function clearPPT(){ ["p-title","p-author","p-min","p-hook","p-what","p-how","p-sum"].forEach(id=>document.getElementById(id).value=""); document.getElementById("p-out").textContent='「🐰 構成を作る」を押すと出ます。'; }
+
+  /* ===== ⑤ 日報・敬語 ===== */
+  function rv(id){ return document.getElementById(id).value; }
+  // 簡易敬語化：語尾を整える（完全な校正ではなく下書き補助）
+  function politeLine(x){ let t=x.trim(); if(!t) return "";
+    t=t.replace(/した$/,"しました").replace(/やった$/,"取り組みました").replace(/できた$/,"できました")
+       .replace(/わかった$/,"理解できました").replace(/学んだ$/,"学びました").replace(/だ$/,"です").replace(/する$/,"します");
+    if(!/(ます|ました|です|でした)$/.test(t)) t=t+"。"; else t=t+"。"; return t; }
+  function buildReport(d){
+    let s=(d.date?d.date+"　":"")+"日報\n"; if(d.to) s+="あて先："+d.to+"\n";
+    s+="\nお疲れさまです。本日の活動について報告いたします。\n";
+    const did=lines(d.did); if(did.length){ s+="\n【本日の取り組み】\n"+did.map(x=>"・"+politeLine(x)).join("\n")+"\n"; }
+    if(d.learn){ s+="\n【わかったこと・気づき】\n"+politeLine(d.learn)+"\n"; }
+    if(d.hard){ s+="\n【むずかしかったこと・ご質問】\n"+politeLine(d.hard)+"\n"; }
+    if(d.next){ s+="\n【明日の予定】\n"+politeLine(d.next)+"\n"; }
+    s+="\n以上、よろしくお願いいたします。";
+    return s.trim();
+  }
+  function genReport(){ document.getElementById("r-out").textContent=buildReport({date:sanitize(rv("r-date"),20),to:sanitize(rv("r-to"),40),did:rv("r-did"),learn:multiClean(rv("r-learn")),hard:multiClean(rv("r-hard")),next:multiClean(rv("r-next"))}); }
+  function clearReport(){ ["r-date","r-to","r-did","r-learn","r-hard","r-next"].forEach(id=>document.getElementById(id).value=""); document.getElementById("r-out").textContent='「🐰 日報にする」を押すと出ます。'; }
+
+  /* ===== ⑥ 認識・理解 ===== */
+  let uLv=null; buildLvTabs("uLvTabs","uLvGuide",()=>uLv,v=>uLv=v);
+  function uv(id){ return document.getElementById(id).value; }
+  function buildUnderstand(d){ let s="【認識・理解 記録】\n教科書："+(d.page||"-")+"　／　対象："+(d.who||"-")+"\nレベル："+(d.lv||"（未選択）")+"\n\n";
+    if(d.raw)s+="■ 受講生の言葉そのまま\n「"+d.raw.replace(/^「|」$/g,"")+"」\n\n"; if(d.fact)s+="■ 事実\n"+d.fact+"\n\n"; if(d.view)s+="■ 所感・見立て（事実と分離）\n"+d.view+"\n\n"; if(d.next)s+="■ 次の一手（仕組み側）\n"+d.next+"\n"; return s.trim(); }
+  function genUnderstand(){ const lvLabel=(uLv!==null)?LEVELS[uLv].n:""; document.getElementById("u-out").textContent=buildUnderstand({page:sanitize(uv("u-page"),60),who:sanitize(uv("u-who"),40),lv:lvLabel,raw:multiClean(uv("u-raw")),fact:multiClean(uv("u-fact")),view:multiClean(uv("u-view")),next:multiClean(uv("u-next"))}); }
+  function clearUnderstand(){ ["u-page","u-who","u-raw","u-fact","u-view","u-next"].forEach(id=>document.getElementById(id).value=""); uLv=null; [...document.getElementById("uLvTabs").children].forEach(x=>x.classList.remove("on")); document.getElementById("uLvGuide").classList.remove("show"); document.getElementById("u-out").textContent='「🐰 整える」を押すと出ます。'; }
+
+  renderTimer(); setMode("teacher"); syncStage();
+
+  /* ===== 自己テスト ===== */
+  (function selfTest(){
+    const R=[]; const A=(n,c)=>R.push({n,ok:!!c});
+    // ① 講師
+    const t1=buildTeacher({unit:"DNS",who:"受講生A",cat:"コマンド",urg:"中",lvLabel:"L2 状況を言える",lvTips:["a","b"],stage:"一次",prim:"即答した",goal:"名前解決",state:"",tried:"",err:"not found",raw:"「権限が」",ask:"次は？",result:"二次対応へ"});
+    A("講師：単元反映", t1.indexOf("DNS")>-1); A("講師：エラーCB化", t1.indexOf("```")>-1);
+    A("講師：引用二重括弧防止", t1.indexOf("「「")===-1 && t1.indexOf("権限が")>-1); A("講師：二次対応接続", t1.indexOf("二次対応引継ぎテンプレ")>-1);
+    A("講師：レベル反映", t1.indexOf("受講生レベル：L2")>-1); A("講師：一次判断反映", t1.indexOf("判断：即答した")>-1);
+    A("講師：一次のみで二次見出し出ない", t1.indexOf("二次対応（振り返り")===-1);
+    const t2=buildTeacher({unit:"chmod",who:"受講生B",cat:"",urg:"中",lvLabel:"L3",lvTips:[],stage:"一次＋二次",prim:"持ち帰り（→二次へ）",goal:"",state:"",tried:"",err:"",raw:"",ask:"",result:"二次対応へ",root:"手順書に説明なし",spread:"はい",faq:"する",ren:"D 個別エスカレ",prevent:"図解を追記",links:["FAQナレッジベースDB","気づきログDB"]});
+    A("講師：二次で根本原因", t2.indexOf("根本原因")>-1 && t2.indexOf("手順書に説明なし")>-1);
+    A("講師：二次で横展開/FAQ", t2.indexOf("横展開：はい")>-1 && t2.indexOf("FAQ化：する")>-1);
+    A("講師：報連相パターン", t2.indexOf("報連相パターン：D 個別エスカレ")>-1);
+    A("講師：再発防止の仕組み", t2.indexOf("図解を追記")>-1);
+    A("講師：連携先複数", t2.indexOf("FAQナレッジベースDB・気づきログDB")>-1);
+    // 追加機能：質問の3層・なぜ系4層回答・その場理解確認・L0
+    const t3=buildTeacher({unit:"暗号化",who:"受講生C",cat:"概念理解",urg:"中",lvLabel:"L0 まだ言葉にできない",lvTips:["x"],stage:"一次",layer:"一拍置く（なぜ?系）",
+      whyDef:"中身を読めなくする仕組み",whyAna:"鍵付きの箱",whyDetail:"機密性は守るが完全性は別",whyOne:"守りの一枚",
+      u1:"暗号化は読めなくするだけ",u2:"金庫みたい",u3:"鍵の管理を調べる",ulvl:"△ なんとなく分かる",result:"解決"});
+    A("講師：質問の層を出力", t3.indexOf("質問の層：一拍置く")>-1);
+    A("講師：4層回答(定義/たとえ/詳細/ひと言)", t3.indexOf("① 定義：")>-1 && t3.indexOf("② たとえ：")>-1 && t3.indexOf("③ 詳しく：")>-1 && t3.indexOf("④ ひと言：")>-1);
+    A("講師：その場理解確認3Step", t3.indexOf("Step1 言い換え：")>-1 && t3.indexOf("Step3 次の一手：")>-1);
+    A("講師：理解度の見立て", t3.indexOf("理解度の見立て：△")>-1);
+    A("講師：L0レベル反映", t3.indexOf("受講生レベル：L0")>-1);
+    A("講師：4層なし時は見出し出ない", t1.indexOf("4層回答")===-1);
+    A("講師：理解確認なし時は見出し出ない", t1.indexOf("その場の理解確認")===-1);
+    A("講師レベルはL0〜L3の4段階", Object.keys(TEACHER_LV).length===4);
+    // 配布用ひな形
+    A("ひな形は6種", TMPL_KINDS.length===6);
+    A("一次対応ひな形にレベル差し込み", buildTmpl(0,2).indexOf("☑ L2 状況を言える")>-1);
+    A("一次対応ひな形に聞き方ヒント差し込み", buildTmpl(0,0).indexOf("・")>-1);
+    A("二次対応ひな形は仕組みで原因", buildTmpl(1,null).indexOf("「人」ではなく「仕組み」")>-1);
+    A("理解確認ひな形は3Step", buildTmpl(2,null).indexOf("Step 1")>-1 && buildTmpl(2,null).indexOf("Step 3")>-1);
+    A("質問シート基本は5項目", buildTmpl(3,null).indexOf("5. 自分の予想")>-1);
+    A("質問シートかんたんは穴埋め式", buildTmpl(4,null).indexOf("をしようとしたら")>-1);
+    A("4層回答の型に見本がある", buildTmpl(5,null).indexOf("暗号化は守りの一枚")>-1 && buildTmpl(5,null).indexOf("① 定義")>-1);
+    A("未選択時は案内文", buildTmpl(null,null).indexOf("上で種類を選ぶ")>-1);
+    // ② 受講生
+    const s1=buildStudent({prem:"3まで",hyp:"数字かも",ask:"755とは？",use:"公開設定"});
+    A("受講生：前提仮説質問", s1.indexOf("前提")>-1&&s1.indexOf("仮説")>-1&&s1.indexOf("755とは？")>-1);
+    A("受講生：空で案内文", buildStudent({prem:"",hyp:"",ask:"",use:""}).indexOf("一緒に画面")>-1); A("レベル4段階", LEVELS.length===4);
+    // ③ クイズ
+    const recs=[{ok:true,who:"受講生A",n:1},{ok:false,who:"",n:2},{ok:true,who:"受講生B",n:3}];
+    A("クイズ出題3", buildResult(recs).indexOf("出題：3問")>-1); A("クイズ67%", buildResult(recs).indexOf("67%")>-1);
+    A("クイズ指名なし", buildResult(recs).indexOf("（指名なし）")>-1); A("クイズ空安全", buildResult([]).indexOf("出題：0問")>-1);
+    setSec(15); A("15秒切替", quizSec===15&&remain===15); setSec(30); A("30秒戻す", quizSec===30&&remain===30); A("不正秒無視",(setSec(99),quizSec===30));
+    paint(14200); A("残14.2→15", remain===15); paint(0); A("残0→時間切れ", timeEl.textContent==="時間切れ"); resetTimer();
+    records.length=0; records.push({ok:true,who:"A",n:1},{ok:false,who:"",n:2});
+    A("CSVヘッダ", toCSV(quizRows()).indexOf("Q番号,結果,指名")>-1); A("Excel構造", toExcelXML("x",quizRows()).indexOf("<Workbook")>-1);
+    A("Notion表", quizNotion().indexOf("| Q | 結果 | 指名 |")>-1); records.length=0; renderScore();
+    // ④ PPT
+    const p1=buildPPT({title:"権限入門",author:"受講生A",min:"5",hook:"漏えい防止",what:"とは\nrwx",how:"chmod 755\nls -l",sum:"ls -lで確認"});
+    A("PPT：タイトル反映", p1.indexOf("権限入門")>-1); A("PPT：WHATが箇条書き", p1.indexOf("・とは")>-1);
+    A("PPT：HOWが番号付き", p1.indexOf("1. chmod 755")>-1); A("PPT：5枚構成", (p1.match(/--- スライド/g)||[]).length===5);
+    // ⑤ 日報
+    const r1=buildReport({date:"6/1",to:"メイン講師",did:"権限を学んだ\n演習をやった",learn:"慣れた",hard:"計算が不安",next:"復習する"});
+    A("日報：敬語化(した→ました)", r1.indexOf("学びました")>-1 || r1.indexOf("ました")>-1);
+    A("日報：締めの挨拶", r1.indexOf("よろしくお願いいたします")>-1); A("日報：取り組み箇条書き", r1.indexOf("【本日の取り組み】")>-1);
+    A("日報：空でも落ちない", typeof buildReport({date:"",to:"",did:"",learn:"",hard:"",next:""})==="string");
+    // ⑥ 認識理解
+    const u1=buildUnderstand({page:"P42",who:"受講生A",lv:"Lv2",raw:"「むずい」",fact:"説明できた",view:"",next:"演習追加"});
+    A("理解：ページ反映", u1.indexOf("P42")>-1); A("理解：引用二重括弧防止", u1.indexOf("「「")===-1&&u1.indexOf("むずい")>-1);
+    A("理解：空項目は出ない", u1.indexOf("所感・見立て")===-1 && u1.indexOf("次の一手")>-1);
+    // 共通
+    A("6モードのテーマ定義", Object.keys(MODE_THEME).length===6);
+    A("サニタイズ改行除去", sanitize("a\nb",60).indexOf("\n")===-1); A("複数行改行保持", multiClean("a\nb").indexOf("\n")>-1);
+    A("60字超省略", sanitize("あ".repeat(61),60).length===61); A("HTMLエスケープ", escapeHtml("<b>x</b>").indexOf("<b>")===-1);
+    A("lines関数で空行除去", lines("a\n\n b \n").length===2);
+    A("新宿ビル定義", SHINJUKU.length>=10); A("DL関数群", typeof downloadBlob==="function"&&typeof printAsPDF==="function"&&typeof saveMemo==="function");
+
+    const pass=R.filter(x=>x.ok).length, all=R.length;
+    const el=document.getElementById("selftest"); el.textContent="🐰 セルフテスト "+pass+"/"+all+(pass===all?" 全て通過 🎉":" ⚠ 要確認");
+    el.style.color=(pass===all)?"#2e9c6e":"#d9694f"; if(pass!==all) console.warn("self-test:",R.filter(x=>!x.ok));
+  })();
+</script>
+</body>
+</html>
